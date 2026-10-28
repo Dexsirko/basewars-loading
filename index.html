@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BaseWars — Chargement</title>
+<link href="https://fonts.googleapis.com/css?family=Lilita+One|Fredoka:400,600,700&display=swap" rel="stylesheet">
+<!--
+  Écran de chargement du serveur BaseWars (sv_loadingurl).
+  Compatible avec le navigateur de GMod, y compris Awesomium (branche principale, vieux WebKit) :
+  JS ES5, CSS sans variables ni flexbox, préfixes -webkit-. Ouvrir la page dans un navigateur = démo animée.
+-->
+<style>
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+body {
+    background: #172133;
+    color: #ffffff;
+    font-family: "Fredoka", "Trebuchet MS", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+    cursor: default;
+}
+
+/* ---------- Fond vivant ---------- */
+#bg {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    background: #172133;
+    background: -webkit-radial-gradient(50% 35%, circle, #2B3B58 0%, #1E2B44 40%, #172133 75%, #12142B 100%);
+    background: radial-gradient(circle at 50% 35%, #2B3B58 0%, #1E2B44 40%, #172133 75%, #12142B 100%);
+}
+#grid {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0.07;
+    background-image: -webkit-linear-gradient(#ffffff 1px, transparent 1px), -webkit-linear-gradient(left, #ffffff 1px, transparent 1px);
+    background-image: linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-animation: gridmove 12s linear infinite; animation: gridmove 12s linear infinite;
+}
+@-webkit-keyframes gridmove { from { background-position: 0 0; } to { background-position: 64px 64px; } }
+@keyframes gridmove { from { background-position: 0 0; } to { background-position: 64px 64px; } }
+
+.crate {
+    position: absolute; bottom: -140px; border-radius: 18px; opacity: 0.16;
+    border: 4px solid #12142B;
+    -webkit-animation: rise linear infinite; animation: rise linear infinite;
+}
+@-webkit-keyframes rise {
+    0% { -webkit-transform: translateY(0) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.16; } 90% { opacity: 0.16; }
+    100% { -webkit-transform: translateY(-1400px) rotate(220deg); opacity: 0; }
+}
+@keyframes rise {
+    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.16; } 90% { opacity: 0.16; }
+    100% { transform: translateY(-1400px) rotate(220deg); opacity: 0; }
+}
+
+/* ---------- Logo ---------- */
+#logo { position: absolute; left: 0; right: 0; top: 11%; text-align: center; }
+#title {
+    font-family: "Lilita One", "Arial Black", sans-serif;
+    font-size: 132px; line-height: 1; letter-spacing: 4px; color: #ffffff;
+    text-shadow: 0 6px 0 #12142B, 4px 4px 0 #12142B, -4px 4px 0 #12142B, 4px -2px 0 #12142B, -4px -2px 0 #12142B,
+                 0 18px 30px rgba(5, 8, 20, 0.6);
+    -webkit-animation: bob 3.2s ease-in-out infinite; animation: bob 3.2s ease-in-out infinite;
+}
+#title .b { color: #4AA6E8; }
+@-webkit-keyframes bob { 0%, 100% { -webkit-transform: translateY(0); } 50% { -webkit-transform: translateY(-8px); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+#subtitle {
+    display: inline-block; margin-top: 18px; padding: 8px 22px; border-radius: 999px;
+    background: #E2AE4E; border-bottom: 5px solid #AE7F2C; color: #12142B;
+    font-family: "Lilita One", "Arial Black", sans-serif; font-size: 26px; letter-spacing: 2px;
+}
+
+/* ---------- Carte serveur + astuce ---------- */
+#panel {
+    position: absolute; left: 50%; top: 47%; width: 760px; margin-left: -380px;
+    background: #1E2B44; border-radius: 22px; border: 4px solid #12142B;
+    box-shadow: 0 10px 0 rgba(5, 8, 20, 0.55);
+    overflow: hidden;
+}
+#server { padding: 18px 26px 16px 26px; background: #24344F; border-bottom: 4px solid #12142B; }
+#servername { font-size: 30px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#serverinfo { margin-top: 6px; font-size: 18px; color: #9AAACB; }
+#serverinfo span.pill {
+    display: inline-block; margin-right: 8px; padding: 3px 12px; border-radius: 999px;
+    background: #2B3B58; color: #ffffff; font-weight: 600;
+}
+#tip { position: relative; padding: 18px 26px 22px 92px; min-height: 64px; }
+#tipicon {
+    position: absolute; left: 24px; top: 20px; width: 50px; height: 50px; border-radius: 14px;
+    background: #9B6FD8; border-bottom: 5px solid #6E4BA3; text-align: center;
+    font-family: "Lilita One", "Arial Black", sans-serif; font-size: 32px; line-height: 50px; color: #ffffff;
+}
+#tiplabel { font-size: 15px; font-weight: 700; color: #9B6FD8; letter-spacing: 2px; text-transform: uppercase; }
+#tiptext { margin-top: 4px; font-size: 21px; line-height: 1.35; -webkit-transition: opacity 0.35s; transition: opacity 0.35s; }
+
+/* ---------- Progression ---------- */
+#loader { position: absolute; left: 50%; bottom: 8%; width: 960px; margin-left: -480px; }
+#statusline { height: 30px; font-size: 20px; font-weight: 600; }
+#status { float: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 780px; }
+#percent { float: right; font-family: "Lilita One", "Arial Black", sans-serif; font-size: 26px; color: #33C28C; }
+#track {
+    position: relative; height: 30px; margin-top: 8px; border-radius: 999px; overflow: hidden;
+    background: #3A4A66; border: 4px solid #12142B;
+}
+#bar {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 999px;
+    background: #33C28C; border-bottom: 6px solid #21835D;
+    -webkit-transition: width 0.4s ease-out; transition: width 0.4s ease-out;
+}
+#bar.busy { width: 100% !important; background: #3A9CE0; border-bottom-color: #2A72B0; }
+#stripes {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0.18;
+    background-image: -webkit-linear-gradient(-45deg, #ffffff 25%, transparent 25%, transparent 50%, #ffffff 50%, #ffffff 75%, transparent 75%);
+    background-image: linear-gradient(135deg, #ffffff 25%, transparent 25%, transparent 50%, #ffffff 50%, #ffffff 75%, transparent 75%);
+    background-size: 40px 40px;
+    -webkit-animation: stripes 0.9s linear infinite; animation: stripes 0.9s linear infinite;
+}
+@-webkit-keyframes stripes { from { background-position: 0 0; } to { background-position: 40px 0; } }
+@keyframes stripes { from { background-position: 0 0; } to { background-position: 40px 0; } }
+#file { margin-top: 10px; height: 22px; font-size: 16px; color: #9AAACB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Coins ---------- */
+#discord {
+    position: absolute; left: 28px; bottom: 26px; padding: 10px 18px 10px 16px; border-radius: 14px;
+    background: #5865F2; border-bottom: 5px solid #3C45A5; font-size: 19px; font-weight: 700;
+}
+#discord small { display: block; font-size: 13px; font-weight: 600; opacity: 0.85; letter-spacing: 1px; text-transform: uppercase; }
+#corner { position: absolute; right: 28px; bottom: 30px; text-align: right; font-size: 15px; color: #9AAACB; }
+#corner b { color: #ffffff; }
+
+/* Petits écrans (fenêtré 1280×720 et moins) */
+@media (max-width: 1100px), (max-height: 760px) {
+    #title { font-size: 92px; }
+    #subtitle { font-size: 20px; margin-top: 12px; }
+    #logo { top: 7%; }
+    #panel { width: 640px; margin-left: -320px; top: 42%; }
+    #loader { width: 760px; margin-left: -380px; bottom: 15%; }
+    #servername { font-size: 24px; }
+    #tiptext { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="grid"></div>
+<div id="crates"></div>
+
+<div id="logo">
+    <div id="title">BASE<span class="b">WARS</span></div>
+    <div id="subtitle">WENEXA</div>
+</div>
+
+<div id="panel">
+    <div id="server">
+        <div id="servername">BaseWars</div>
+        <div id="serverinfo"><span class="pill" id="map">bw_wenexa</span><span class="pill" id="slots">—</span><span id="welcome"></span></div>
+    </div>
+    <div id="tip">
+        <div id="tipicon">!</div>
+        <div id="tiplabel">Astuce</div>
+        <div id="tiptext"></div>
+    </div>
+</div>
+
+<div id="loader">
+    <div id="statusline"><div id="status">Connexion au serveur…</div><div id="percent"></div></div>
+    <div id="track"><div id="bar"></div><div id="stripes"></div></div>
+    <div id="file"></div>
+</div>
+
+<div id="discord"><small>Discord</small>discord.gg/q3jMKn4qcy</div>
+<div id="corner">Gamemode par <b>Dexsirko</b></div>
+
+<script>
+(function () {
+    var LANG = {
+        fr: {
+            tip: "Astuce", connect: "Connexion au serveur…", files: "fichiers", players: "joueurs max",
+            welcome: "Bon jeu !", downloading: "Téléchargement",
+            status: {
+                "Workshop Complete": "Contenu Workshop prêt",
+                "Sending client info": "Envoi de tes infos au serveur",
+                "Client info sent!": "Infos envoyées",
+                "Received all Lua files we needed!": "Scripts reçus",
+                "Starting Lua...": "Démarrage du gamemode…",
+                "Loading": "Chargement de la carte…"
+            },
+            tips: [
+                "F4 ouvre la boutique : imprimantes, farms, armes et défenses.",
+                "F3 ouvre le menu BaseWars : faction, prestige, classement, raids.",
+                "Prends une base libre en maintenant E sur sa porte : elle devient à toi.",
+                "Une imprimante sans papier s'arrête : pense à la réapprovisionner.",
+                "Les farms se font à la main : maintiens E sur les machines, au bon moment.",
+                "Vends tes cartons à Barnabé : il passe 10 minutes à un point de la carte, puis repart.",
+                "Un carton bien noté vaut bien plus qu'un carton bâclé. Soigne tes gestes !",
+                "Pour raider, il faut des imprimantes ; et seuls les joueurs du palier 10 et plus peuvent être raidés.",
+                "Ton arme est perdue à la mort : n'emporte pas ta meilleure au mauvais endroit.",
+                "Les caisses d'armes se gagnent aussi en jouant, sans rien dépenser.",
+                "Le prestige remet ton niveau à zéro mais débloque l'arbre en étoile et des armes rares.",
+                "Défie un joueur en duel dans les arènes : un clic, et que le meilleur gagne.",
+                "Personnalise le blason et la couleur de ta faction depuis le menu F3.",
+                "Un souci ? Ouvre un ticket : le staff en service te répond.",
+                "Rejoins le Discord : discord.gg/q3jMKn4qcy"
+            ]
+        },
+        en: {
+            tip: "Tip", connect: "Connecting to the server…", files: "files", players: "max players",
+            welcome: "Have fun!", downloading: "Downloading",
+            status: {
+                "Workshop Complete": "Workshop content ready",
+                "Sending client info": "Sending your info to the server",
+                "Client info sent!": "Info sent",
+                "Received all Lua files we needed!": "Scripts received",
+                "Starting Lua...": "Starting the gamemode…",
+                "Loading": "Loading the map…"
+            },
+            tips: [
+                "F4 opens the shop: printers, farms, weapons and defenses.",
+                "F3 opens the BaseWars menu: faction, prestige, leaderboard, raids.",
+                "Claim a free base by holding E on its door.",
+                "A printer without paper stops: keep it supplied.",
+                "Farms are hands-on: hold E on the machines at the right moment.",
+                "Sell your crates to Barnabé: he stays 10 minutes at a spot on the map, then moves on.",
+                "A well-rated crate is worth far more than a sloppy one. Mind your moves!",
+                "To raid you need printers of your own, and only players from tier 10 up can be raided.",
+                "Your weapon is lost when you die: don't bring your best one to the wrong place.",
+                "Weapon crates can also be earned just by playing.",
+                "Prestige resets your level but unlocks the star tree and rare weapons.",
+                "Challenge a player to a duel in the arenas: one click, may the best win.",
+                "Customize your faction's crest and color from the F3 menu.",
+                "A problem? Open a ticket: on-duty staff will answer.",
+                "Join the Discord: discord.gg/q3jMKn4qcy"
+            ]
+        }
+    };
+
+    var L = LANG.fr;
+    var $ = function (id) { return document.getElementById(id); };
+    var total = 0, needed = 0, called = false;
+
+    function setText(id, text) { $(id).innerHTML = ""; $(id).appendChild(document.createTextNode(text)); }
+
+    /* ----- Fond : caisses qui montent (créées une fois) ----- */
+    var COLORS = ["#3A9CE0", "#E2AE4E", "#9B6FD8", "#33C28C", "#DB5664", "#E08A3E"];
+    for (var i = 0; i < 14; i++) {
+        var c = document.createElement("div");
+        var size = 40 + Math.floor(Math.random() * 70);
+        var dur = 14 + Math.random() * 16;
+        c.className = "crate";
+        c.style.width = size + "px";
+        c.style.height = size + "px";
+        c.style.left = Math.floor(Math.random() * 100) + "%";
+        c.style.background = COLORS[i % COLORS.length];
+        c.style.webkitAnimationDuration = dur + "s";
+        c.style.animationDuration = dur + "s";
+        c.style.webkitAnimationDelay = (-Math.random() * dur) + "s";
+        c.style.animationDelay = (-Math.random() * dur) + "s";
+        $("crates").appendChild(c);
+    }
+
+    /* ----- Astuces ----- */
+    var order = [], tipIndex = 0;
+    function shuffleTips() {
+        order = [];
+        for (var i = 0; i < L.tips.length; i++) order.push(i);
+        for (var j = order.length - 1; j > 0; j--) {
+            var k = Math.floor(Math.random() * (j + 1));
+            var t = order[j]; order[j] = order[k]; order[k] = t;
+        }
+        tipIndex = 0;
+    }
+    function nextTip() {
+        if (tipIndex >= order.length) shuffleTips();
+        var text = L.tips[order[tipIndex++]];
+        var el = $("tiptext");
+        el.style.opacity = 0;
+        setTimeout(function () { setText("tiptext", text); el.style.opacity = 1; }, 350);
+    }
+
+    function applyLang(code) {
+        code = (code || "").toLowerCase().substring(0, 2);
+        L = LANG[code] || LANG.fr;
+        setText("tiplabel", L.tip);
+        setText("welcome", L.welcome);
+        shuffleTips();
+        nextTip();
+    }
+
+    /* ----- Progression ----- */
+    function refresh() {
+        var bar = $("bar");
+        if (total > 0) {
+            var done = Math.max(0, Math.min(total, total - needed));
+            var pct = Math.floor(done / total * 100);
+            bar.className = "";
+            bar.style.width = pct + "%";
+            setText("percent", pct + " %");
+        } else {
+            bar.className = "busy";
+            setText("percent", "");
+        }
+    }
+
+    /* ----- API appelée par GMod ----- */
+    window.GameDetails = function (servername, serverurl, mapname, maxplayers, steamid, gamemode, volume, language) {
+        called = true;
+        if (servername) setText("servername", servername);
+        if (mapname) setText("map", mapname);
+        if (maxplayers) setText("slots", maxplayers + " " + L.players);
+        applyLang(language);
+        if (maxplayers) setText("slots", maxplayers + " " + L.players);
+        setText("status", L.connect);
+        refresh();
+    };
+    window.SetFilesTotal = function (n) { called = true; total = Number(n) || 0; refresh(); };
+    window.SetFilesNeeded = function (n) { called = true; needed = Number(n) || 0; refresh(); };
+    window.DownloadingFile = function (name) {
+        called = true;
+        setText("file", L.downloading + " : " + String(name || "").replace(/^.*[\/\\]/, ""));
+    };
+    window.SetStatusChanged = function (status) {
+        called = true;
+        status = String(status || "");
+        var key;
+        for (key in L.status) {
+            if (status.indexOf(key) === 0) { status = L.status[key]; break; }
+        }
+        setText("status", status);
+        if (total === 0) refresh();
+    };
+
+    applyLang(navigator.language || "fr");
+    refresh();
+    setInterval(nextTip, 7000);
+
+    /* ----- Démo hors GMod (page ouverte dans un navigateur) ----- */
+    setTimeout(function () {
+        if (called) return;
+        window.GameDetails("BaseWars Wenexa | Serveur de test", "", "bw_wenexa", 32, "", "basewars", 1, navigator.language || "fr");
+        called = false;
+        var t = 1200, left = 1200, names = ["materials/basewars_materials/fun/trophy_32.png",
+            "models/basewars/farm3_jam_cooler.mdl", "sound/basewars/unbox/reveal3.wav", "maps/bw_wenexa.bsp"];
+        window.SetFilesTotal(t);
+        var demo = setInterval(function () {
+            if (called) { clearInterval(demo); return; }
+            left = Math.max(0, left - Math.floor(20 + Math.random() * 60));
+            window.SetFilesNeeded(left);
+            window.DownloadingFile(names[Math.floor(Math.random() * names.length)]);
+            called = false;
+            if (left === 0) {
+                window.SetStatusChanged("Starting Lua...");
+                called = false;
+                setTimeout(function () { left = t; }, 2500);
+            }
+        }, 450);
+    }, 1500);
+})();
+</script>
+</body>
+</html>
